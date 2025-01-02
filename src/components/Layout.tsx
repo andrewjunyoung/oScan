@@ -1,11 +1,12 @@
+import { Outlet } from 'react-router-dom';
 import NavBar from './NavBar';
 
-const Layout = ({ children }) => {
+const Layout = () => {
   return (
-    <div className="min-h-screen">
+    <div>
       <NavBar />
-      <main className="pt-16">
-        {children}
+      <main>
+        <Outlet />
       </main>
     </div>
   );
