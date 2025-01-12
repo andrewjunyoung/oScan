@@ -20,7 +20,10 @@ const NavBar = () => {
         <button onClick={() => setIsOpen(!isOpen)} className="hover:bg-gray-100 p-2 rounded-lg">
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <h1>My App</h1>
+        <div className="flex items-center gap-2">
+          <img src="/favicon.png" alt="" className="h-6 w-6" />
+          <h1>oScan</h1>
+        </div>
       </div>
 
       {/* Sliding menu */}
