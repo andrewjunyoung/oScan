@@ -21,11 +21,9 @@ function ScanPage() {
         setHasPermission(false);
       }
     };
-
     if (!photoData) {
       startCamera();
     }
-
     return () => {
       const stream = videoRef.current?.srcObject as MediaStream;
       stream?.getTracks().forEach((track) => track.stop());
@@ -34,11 +32,9 @@ function ScanPage() {
 
   const takePhoto = () => {
     if (!videoRef.current) return;
-
     const canvas = document.createElement("canvas");
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
-
     const context = canvas.getContext("2d");
     if (context) {
       context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
@@ -51,6 +47,11 @@ function ScanPage() {
     setPhotoData(null);
   };
 
+  const handleScanPages = () => {
+    // NotImplemented: Will handle saving pages to external location
+    throw new Error("Not implemented");
+  };
+
   if (photoData) {
     return (
       <div className="fixed inset-0 bg-white">
@@ -60,17 +61,26 @@ function ScanPage() {
             Back to camera
           </button>
           <div className="h-[50vh] flex items-center justify-center bg-gray-100 rounded-lg mb-4">
-            <img 
-              src={photoData} 
-              alt="Captured photo" 
+            <img
+              src={photoData}
+              alt="Captured photo"
               className="h-full w-full object-contain"
             />
           </div>
-          <p className="text-gray-700">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor 
-            incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis 
-            nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-          </p>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={resetPhoto}
+              className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+            >
+              Retake
+            </button>
+            <button
+              onClick={handleScanPages}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Scan pages
+            </button>
+          </div>
         </div>
       </div>
     );
