@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@techstark/opencv-js": "^4.10.0-release.1",
     "aws-cdk": "^2.175.1",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",

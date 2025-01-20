@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Camera, ArrowLeft } from "lucide-react";
+import Tesseract from "tesseract.js";
 
 function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [photoData, setPhotoData] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedText, setExtractedText] = useState<string>("");
 
   useEffect(() => {
     const startCamera = async () => {
@@ -40,21 +43,49 @@ function ScanPage() {
       context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const photo = canvas.toDataURL("image/jpeg");
       setPhotoData(photo);
+      processImage(photo);
+    }
+  };
+
+  const processImage = async (imageData: string) => {
+    setIsProcessing(true);
+    try {
+      console.log("Creating worker...");
+      const worker = await Tesseract.createWorker();
+      console.log("Setting params...");
+      await worker.setParameters({
+        tessdata_dir: "../../data",
+        preserve_interword_spaces: "1",
+      });
+      console.log("Initializing jpn...");
+      await worker.reinitialize("jpn");
+      console.log("Starting recognition...");
+      const result = await worker.recognize(imageData);
+      console.log("Result:", result);
+      setExtractedText(result.data.text);
+      await worker.terminate();
+    } catch (error) {
+      console.error("Full error:", error);
+      setExtractedText("Error extracting text");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const resetPhoto = () => {
     setPhotoData(null);
+    setExtractedText("");
   };
 
-  const handleScanPages = () => {
+  const handleSavePages = async () => {
     // NotImplemented: Will handle saving pages to external location
+    // Will send both image and extracted text
     throw new Error("Not implemented");
   };
 
   if (photoData) {
     return (
-      <div className="fixed inset-0 bg-white">
+      <div className="fixed inset-0 bg-white overflow-auto">
         <div className="p-4">
           <button onClick={resetPhoto} className="flex items-center gap-2 mb-4">
             <ArrowLeft size={24} />
@@ -67,20 +98,32 @@ function ScanPage() {
               className="h-full w-full object-contain"
             />
           </div>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={resetPhoto}
-              className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-            >
-              Retake
-            </button>
-            <button
-              onClick={handleScanPages}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Scan pages
-            </button>
-          </div>
+          {isProcessing ? (
+            <div className="text-center py-4">
+              <div className="animate-pulse">Processing image...</div>
+            </div>
+          ) : (
+            <div className="mb-4">
+              <div className="bg-gray-50 p-4 rounded-lg mb-4 min-h-[100px] whitespace-pre-wrap">
+                {extractedText || "No text extracted"}
+              </div>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={resetPhoto}
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                >
+                  Retake
+                </button>
+                <button
+                  onClick={handleSavePages}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  disabled={isProcessing}
+                >
+                  Save pages
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
