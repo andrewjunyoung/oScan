@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import cv from "@techstark/opencv-js";
 import { Camera, ArrowLeft } from "lucide-react";
 import Tesseract from "tesseract.js";
 
@@ -8,6 +9,7 @@ function ScanPage() {
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState<string>("");
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
 
   useEffect(() => {
     const startCamera = async () => {
@@ -43,6 +45,7 @@ function ScanPage() {
       context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const photo = canvas.toDataURL("image/jpeg");
       setPhotoData(photo);
+      detectRegions(photo);
       processImage(photo);
     }
   };
@@ -93,8 +96,7 @@ function ScanPage() {
           </button>
           <div className="h-[50vh] flex items-center justify-center bg-gray-100 rounded-lg mb-4">
             <img
-              src={photoData}
-              alt="Captured photo"
+              src={processedImage!}
               className="h-full w-full object-contain"
             />
           </div>
@@ -129,6 +131,56 @@ function ScanPage() {
     );
   }
 
+  const detectRegions = async (imageData: string) => {
+    // Create image element from data URL
+    // const img = new Image();
+    // img.src = imageData;
+    // await new Promise((resolve) => (img.onload = resolve));
+
+    // // Create canvas and draw image
+    // const canvas = document.createElement("canvas");
+    // canvas.width = img.width;
+    // canvas.height = img.height;
+    // const ctx = canvas.getContext("2d");
+    // ctx?.drawImage(img, 0, 0);
+
+    // // Now use canvas for OpenCV
+    // const cvImg = cv.imread(canvas);
+    // const worker = await Tesseract.createWorker();
+
+    // await worker.setParameters({
+    //   tessdata_dir: "./data",
+    //   preserve_interword_spaces: "1",
+    //   psm: 6,
+    // });
+    // await worker.reinitialize("jpn_vert");
+
+    // const { data } = await worker.recognize(imageData);
+
+    // console.log("data", data)
+    // console.log("data", data.box)
+    // data.words.forEach((word) => {
+    //   if (word.confidence > 30) {
+    //     const { x0, y0, x1, y1 } = word.bbox;
+    //     if (x1 - x0 > 10 && y1 - y0 > 10) {
+    //       cv.rectangle(
+    //         cvImg,
+    //         new cv.Point(x0, y0),
+    //         new cv.Point(x1, y1),
+    //         new cv.Scalar(0, 255, 0),
+    //         2
+    //       );
+    //     }
+    //   }
+    // });
+
+    // const outCanvas = document.createElement("canvas");
+    // cv.imshow(outCanvas, cvImg);
+    setProcessedImage(imageData);//  outCanvas.toDataURL());
+    // cvImg.delete();
+    // await worker.terminate();
+  };
+
   return (
     <div className="pt-20 fixed inset-0">
       {hasPermission ? (
@@ -137,7 +189,7 @@ function ScanPage() {
             ref={videoRef}
             autoPlay
             playsInline
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover scale-x-[-1]"
           />
           <button
             onClick={takePhoto}
