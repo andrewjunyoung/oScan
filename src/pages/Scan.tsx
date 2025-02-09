@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import cv from "@techstark/opencv-js";
 import { Camera, ArrowLeft } from "lucide-react";
 import Tesseract from "tesseract.js";
 
@@ -81,9 +80,35 @@ function ScanPage() {
   };
 
   const handleSavePages = async () => {
-    // NotImplemented: Will handle saving pages to external location
-    // Will send both image and extracted text
-    throw new Error("Not implemented");
+    try {
+      // Save text file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const textFilename = `user_data/${timestamp}.txt`;
+      await window.fs.writeFile(textFilename, extractedText);
+
+      // Update library.json
+      const libraryPath = "user_data/library.json";
+      let library;
+      try {
+        const libraryContent = await window.fs.readFile(libraryPath, {
+          encoding: "utf8",
+        });
+        library = JSON.parse(libraryContent);
+      } catch {
+        library = { books: [] };
+      }
+
+      library.books.push({
+        id: timestamp,
+        title: `Book ${library.books.length + 1}`,
+      });
+
+      await window.fs.writeFile(libraryPath, JSON.stringify(library, null, 2));
+      console.log(`Saved text and updated library`);
+    } catch (error) {
+      console.error("Error saving files:", error);
+      throw error;
+    }
   };
 
   if (photoData) {
@@ -132,53 +157,8 @@ function ScanPage() {
   }
 
   const detectRegions = async (imageData: string) => {
-    // Create image element from data URL
-    // const img = new Image();
-    // img.src = imageData;
-    // await new Promise((resolve) => (img.onload = resolve));
-
-    // // Create canvas and draw image
-    // const canvas = document.createElement("canvas");
-    // canvas.width = img.width;
-    // canvas.height = img.height;
-    // const ctx = canvas.getContext("2d");
-    // ctx?.drawImage(img, 0, 0);
-
-    // // Now use canvas for OpenCV
-    // const cvImg = cv.imread(canvas);
-    // const worker = await Tesseract.createWorker();
-
-    // await worker.setParameters({
-    //   tessdata_dir: "./data",
-    //   preserve_interword_spaces: "1",
-    //   psm: 6,
-    // });
-    // await worker.reinitialize("jpn_vert");
-
-    // const { data } = await worker.recognize(imageData);
-
-    // console.log("data", data)
-    // console.log("data", data.box)
-    // data.words.forEach((word) => {
-    //   if (word.confidence > 30) {
-    //     const { x0, y0, x1, y1 } = word.bbox;
-    //     if (x1 - x0 > 10 && y1 - y0 > 10) {
-    //       cv.rectangle(
-    //         cvImg,
-    //         new cv.Point(x0, y0),
-    //         new cv.Point(x1, y1),
-    //         new cv.Scalar(0, 255, 0),
-    //         2
-    //       );
-    //     }
-    //   }
-    // });
-
-    // const outCanvas = document.createElement("canvas");
-    // cv.imshow(outCanvas, cvImg);
-    setProcessedImage(imageData);//  outCanvas.toDataURL());
-    // cvImg.delete();
-    // await worker.terminate();
+    // TODO
+    setProcessedImage(imageData);
   };
 
   return (
