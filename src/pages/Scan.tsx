@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import cv from "@techstark/opencv-js";
 import { Camera, ArrowLeft } from "lucide-react";
 import { createWorker, PSM } from "tesseract.js";
 
