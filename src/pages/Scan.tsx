@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import cv from "@techstark/opencv-js";
 import { Camera, ArrowLeft } from "lucide-react";
-import Tesseract from "tesseract.js";
+import { createWorker, PSM } from "tesseract.js";
 
 function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -9,7 +9,9 @@ function ScanPage() {
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState<string>("");
-  const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const [ocrResults, setOcrResults] = useState<any>(null);
+  const [image, setImage] = useState<string | null>(null);
+  const imgRef = useRef(null);
 
   useEffect(() => {
     const startCamera = async () => {
@@ -45,7 +47,6 @@ function ScanPage() {
       context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const photo = canvas.toDataURL("image/jpeg");
       setPhotoData(photo);
-      detectRegions(photo);
       processImage(photo);
     }
   };
@@ -53,19 +54,26 @@ function ScanPage() {
   const processImage = async (imageData: string) => {
     setIsProcessing(true);
     try {
-      console.log("Creating worker...");
-      const worker = await Tesseract.createWorker();
-      console.log("Setting params...");
+      const worker = await createWorker("eng");
       await worker.setParameters({
-        tessdata_dir: "../../data",
         preserve_interword_spaces: "1",
+        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+        tessedit_char_whitelist:
+          "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ :",
       });
-      console.log("Initializing jpn...");
-      await worker.reinitialize("jpn");
-      console.log("Starting recognition...");
-      const result = await worker.recognize(imageData);
+      const result = await worker.recognize(
+        imageData,
+        {},
+        {
+          text: true,
+          blocks: true,
+          layoutBlocks: true,
+        }
+      );
       console.log("Result:", result);
       setExtractedText(result.data.text);
+      setOcrResults(result);
+      setImage(imageData);
       await worker.terminate();
     } catch (error) {
       console.error("Full error:", error);
@@ -94,11 +102,35 @@ function ScanPage() {
             <ArrowLeft size={24} />
             Back to camera
           </button>
+          {/* <div className="h-[50vh] flex items-center justify-center bg-gray-100 rounded-lg mb-4"> */}
           <div className="h-[50vh] flex items-center justify-center bg-gray-100 rounded-lg mb-4">
-            <img
-              src={processedImage!}
-              className="h-full w-full object-contain"
-            />
+            <div className="relative">
+              <img ref={imgRef} src={image} draggable={true} />
+              {image && ocrResults && (
+                <svg
+                  className="absolute top-0 left-0"
+                  style={{
+                    width: imgRef.current?.width || "100%",
+                    height: imgRef.current?.height || "100%",
+                  }}
+                  viewBox={`0 0 ${ocrResults.data.width} ${ocrResults.data.height}`}
+                  preserveAspectRatio="none"
+                >
+                  {ocrResults.data.blocks.map((block, i) => (
+                    <rect
+                      key={i}
+                      x={block.bbox.x0}
+                      y={block.bbox.y0}
+                      width={block.bbox.x1 - block.bbox.x0}
+                      height={block.bbox.y1 - block.bbox.y0}
+                      fill="none"
+                      stroke="red"
+                      strokeWidth={2}
+                    />
+                  ))}
+                </svg>
+              )}
+            </div>
           </div>
           {isProcessing ? (
             <div className="text-center py-4">
@@ -130,56 +162,6 @@ function ScanPage() {
       </div>
     );
   }
-
-  const detectRegions = async (imageData: string) => {
-    // Create image element from data URL
-    // const img = new Image();
-    // img.src = imageData;
-    // await new Promise((resolve) => (img.onload = resolve));
-
-    // // Create canvas and draw image
-    // const canvas = document.createElement("canvas");
-    // canvas.width = img.width;
-    // canvas.height = img.height;
-    // const ctx = canvas.getContext("2d");
-    // ctx?.drawImage(img, 0, 0);
-
-    // // Now use canvas for OpenCV
-    // const cvImg = cv.imread(canvas);
-    // const worker = await Tesseract.createWorker();
-
-    // await worker.setParameters({
-    //   tessdata_dir: "./data",
-    //   preserve_interword_spaces: "1",
-    //   psm: 6,
-    // });
-    // await worker.reinitialize("jpn_vert");
-
-    // const { data } = await worker.recognize(imageData);
-
-    // console.log("data", data)
-    // console.log("data", data.box)
-    // data.words.forEach((word) => {
-    //   if (word.confidence > 30) {
-    //     const { x0, y0, x1, y1 } = word.bbox;
-    //     if (x1 - x0 > 10 && y1 - y0 > 10) {
-    //       cv.rectangle(
-    //         cvImg,
-    //         new cv.Point(x0, y0),
-    //         new cv.Point(x1, y1),
-    //         new cv.Scalar(0, 255, 0),
-    //         2
-    //       );
-    //     }
-    //   }
-    // });
-
-    // const outCanvas = document.createElement("canvas");
-    // cv.imshow(outCanvas, cvImg);
-    setProcessedImage(imageData);//  outCanvas.toDataURL());
-    // cvImg.delete();
-    // await worker.terminate();
-  };
 
   return (
     <div className="pt-20 fixed inset-0">
