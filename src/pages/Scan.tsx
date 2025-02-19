@@ -51,17 +51,27 @@ function ScanPage() {
     }
   };
 
-  const processImage = async (imageData: string) => {
+  function filterOcrResults(blocks, minConfidence) {
+    return blocks.filter((block) => block.confidence > minConfidence);
+  }
+
+  const processImage = async (
+    imageData: string,
+    options = { filterLowConfidence: 5 }
+  ) => {
     setIsProcessing(true);
     try {
       const worker = await createWorker("eng");
       await worker.setParameters({
+        tessedit_pageseg_mode: options.filterLowConfidence
+          ? PSM.SPARSE_TEXT
+          : PSM.SINGLE_BLOCK,
         preserve_interword_spaces: "1",
-        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
         tessedit_char_whitelist:
           "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ :",
       });
-      const result = await worker.recognize(
+
+      let result = await worker.recognize(
         imageData,
         {},
         {
@@ -70,6 +80,11 @@ function ScanPage() {
           layoutBlocks: true,
         }
       );
+
+      if (options.filterLowConfidence && options.filterLowConfidence > 0) {
+        result.data.blocks = filterOcrResults(result.data.blocks, 5);
+      }
+
       console.log("Result:", result);
       setExtractedText(result.data.text);
       setOcrResults(result);
