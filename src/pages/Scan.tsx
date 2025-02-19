@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import cv from "@techstark/opencv-js";
 import { Camera, ArrowLeft } from "lucide-react";
 import { createWorker, PSM } from "tesseract.js";
 
@@ -103,10 +102,26 @@ function ScanPage() {
     setExtractedText("");
   };
 
-  const handleSavePages = async () => {
-    // NotImplemented: Will handle saving pages to external location
-    // Will send both image and extracted text
-    throw new Error("Not implemented");
+  const handleSavePages = () => {
+    if (!extractedText) {
+      throw new Error("No text to save");
+    }
+
+    // Create the blob and download link
+    const blob = new Blob([extractedText], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    // Create and trigger download
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scan-${timestamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+
+    // Cleanup
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
   if (photoData) {
