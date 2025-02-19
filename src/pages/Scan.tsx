@@ -1,15 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, ArrowLeft } from "lucide-react";
+import { Camera, ArrowLeft, Trash2 } from "lucide-react";
 import { createWorker, PSM } from "tesseract.js";
+
+interface ScannedPage {
+  id: string;
+  image: string;
+  text: string;
+  ocrResults: any;
+}
 
 function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [extractedText, setExtractedText] = useState<string>("");
-  const [ocrResults, setOcrResults] = useState<any>(null);
-  const [image, setImage] = useState<string | null>(null);
+  const [scannedPages, setScannedPages] = useState<ScannedPage[]>([]);
   const imgRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +41,10 @@ function ScanPage() {
     };
   }, [photoData]);
 
+  function filterOcrResults(blocks, minConfidence) {
+    return blocks.filter((block) => block.confidence > minConfidence);
+  }
+
   const takePhoto = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement("canvas");
@@ -49,10 +58,6 @@ function ScanPage() {
       processImage(photo);
     }
   };
-
-  function filterOcrResults(blocks, minConfidence) {
-    return blocks.filter((block) => block.confidence > minConfidence);
-  }
 
   const processImage = async (
     imageData: string,
@@ -84,119 +89,104 @@ function ScanPage() {
         result.data.blocks = filterOcrResults(result.data.blocks, 5);
       }
 
-      console.log("Result:", result);
-      setExtractedText(result.data.text);
-      setOcrResults(result);
-      setImage(imageData);
+      const newPage: ScannedPage = {
+        id: Date.now().toString(),
+        image: imageData,
+        text: result.data.text,
+        ocrResults: result,
+      };
+
+      setScannedPages((prev) => [...prev, newPage]);
       await worker.terminate();
     } catch (error) {
       console.error("Full error:", error);
-      setExtractedText("Error extracting text");
     } finally {
       setIsProcessing(false);
+      setPhotoData(null); // Reset to camera view after processing
     }
   };
 
-  const resetPhoto = () => {
-    setPhotoData(null);
-    setExtractedText("");
+  const deletePage = (pageId: string) => {
+    setScannedPages((prev) => prev.filter((page) => page.id !== pageId));
   };
 
   const handleSavePages = async () => {
-    // NotImplemented: Will handle saving pages to external location
-    // Will send both image and extracted text
-    throw new Error("Not implemented");
+    const allText = scannedPages
+      .map((page) => page.text)
+      .join("\n\n--- Page Break ---\n\n");
+    // You can implement your preferred save method here
+    // For example, downloading as a text file:
+    const blob = new Blob([allText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "scanned_pages.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  if (photoData) {
-    return (
-      <div className="fixed inset-0 bg-white overflow-auto">
-        <div className="p-4">
-          <button onClick={resetPhoto} className="flex items-center gap-2 mb-4">
-            <ArrowLeft size={24} />
-            Back to camera
-          </button>
-          {/* <div className="h-[50vh] flex items-center justify-center bg-gray-100 rounded-lg mb-4"> */}
-          <div className="h-[50vh] flex items-center justify-center bg-gray-100 rounded-lg mb-4">
-            <div className="relative">
-              <img ref={imgRef} src={image} draggable={true} />
-              {image && ocrResults && (
-                <svg
-                  className="absolute top-0 left-0"
-                  style={{
-                    width: imgRef.current?.width || "100%",
-                    height: imgRef.current?.height || "100%",
-                  }}
-                  viewBox={`0 0 ${ocrResults.data.width} ${ocrResults.data.height}`}
-                  preserveAspectRatio="none"
-                >
-                  {ocrResults.data.blocks.map((block, i) => (
-                    <rect
-                      key={i}
-                      x={block.bbox.x0}
-                      y={block.bbox.y0}
-                      width={block.bbox.x1 - block.bbox.x0}
-                      height={block.bbox.y1 - block.bbox.y0}
-                      fill="none"
-                      stroke="red"
-                      strokeWidth={2}
-                    />
-                  ))}
-                </svg>
-              )}
-            </div>
+  return (
+    <div className="fixed inset-0 bg-white flex flex-col">
+      <div className="flex-1 relative">
+        {hasPermission ? (
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="h-full w-full object-cover scale-x-[-1]"
+            />
+            <button
+              onClick={takePhoto}
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-full p-4 shadow-lg"
+              disabled={isProcessing}
+            >
+              <Camera size={32} />
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            Please allow camera access
           </div>
-          {isProcessing ? (
-            <div className="text-center py-4">
-              <div className="animate-pulse">Processing image...</div>
-            </div>
-          ) : (
-            <div className="mb-4">
-              <div className="bg-gray-50 p-4 rounded-lg mb-4 min-h-[100px] whitespace-pre-wrap">
-                {extractedText || "No text extracted"}
-              </div>
-              <div className="flex gap-4 justify-center">
+        )}
+      </div>
+
+      {/* Photo Library */}
+      <div className="h-48 bg-gray-50 border-t border-gray-200 overflow-x-auto">
+        <div className="p-4">
+          <div className="flex gap-4">
+            {scannedPages.map((page) => (
+              <div key={page.id} className="relative group">
+                <img
+                  src={page.image}
+                  alt={`Scan ${page.id}`}
+                  className="h-32 w-auto object-contain rounded-lg border border-gray-300"
+                />
                 <button
-                  onClick={resetPhoto}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  onClick={() => deletePage(page.id)}
+                  className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  Retake
-                </button>
-                <button
-                  onClick={handleSavePages}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                  disabled={isProcessing}
-                >
-                  Save pages
+                  <Trash2 size={16} />
                 </button>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="pt-20 fixed inset-0">
-      {hasPermission ? (
-        <>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="h-full w-full object-cover scale-x-[-1]"
-          />
+      {/* Save All Button */}
+      {scannedPages.length > 0 && (
+        <div className="p-4 border-t border-gray-200 bg-white">
           <button
-            onClick={takePhoto}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-full p-4 shadow-lg"
+            onClick={handleSavePages}
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            disabled={isProcessing}
           >
-            <Camera size={32} />
+            Save {scannedPages.length} page
+            {scannedPages.length === 1 ? "" : "s"}
           </button>
-        </>
-      ) : (
-        <div className="flex items-center justify-center h-full">
-          Please allow camera access
         </div>
       )}
     </div>
